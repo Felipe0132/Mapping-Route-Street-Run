@@ -1,5 +1,5 @@
 import math
-import Enums.enum as enums
+import src.Enums.enum as enums
 import pandas as pd
 
 def setStart(lat, lon, points):
@@ -95,9 +95,11 @@ def paces_to_dataframe(segments, paces_by_segment, pace_base_seg=330):
             icone = "➖ Plano"
 
         esforco_pct = seg.get('esforco_extra_pct', 0.0)
+        km_ref = seg.get('km_ref', f"Km {(total_dist - dist_m)/1000:.2f} a {total_dist/1000:.2f}")
 
         paces_data.append({
             "Trecho": f"Segmento #{i}",
+            "Km Referência": km_ref,
             "Relevo": icone,
             "Distância": f"{dist_m:.0f} m",
             "Inclinação": f"{seg.get('inc', 0):+.1f}%",
@@ -125,6 +127,7 @@ def paces_to_dataframe(segments, paces_by_segment, pace_base_seg=330):
     # Linha final com o resumo da prova completa
     paces_data.append({
         "Trecho": "🏁 Total / Geral",
+        "Km Referência": f"Km 0.00 a {total_dist/1000:.2f}",
         "Relevo": "—",
         "Distância": f"{total_dist:.0f} m",
         "Inclinação": "—",

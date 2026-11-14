@@ -1,4 +1,4 @@
-import utils.utils as utils
+import src.utils.utils as utils
 
 def fator_esforco_inclinacao(inc):
     i = inc / 100.0
@@ -18,11 +18,9 @@ def pacer_ajusted(pace_seg, inc):
     pace_in_inc = pace_seg * fator_inc
     return pace_in_inc, esforco_extra_pct
 
-def calcular_esforcos_e_juntar_blocos(blocos, min_dist_progressao=700):
+def calcular_esforcos_e_juntar_blocos(blocos, min_dist_progressao):
     """
-    Calcula o fator de esforço para cada bloco de relevo (usando 70% dos 20% da prova
-    como corte para progressão nos planos) e junta blocos sequenciais (adjacentes)
-    que possuam o mesmo esforço.
+        Use slice of progress to concat edges with minimum passed
     """
     if not blocos:
         return []
@@ -39,13 +37,14 @@ def calcular_esforcos_e_juntar_blocos(blocos, min_dist_progressao=700):
         if is_plano:
             contador_planos += 1
             if contador_planos == 1:
-                # 1º trecho plano: começa exatamente no ritmo base (fator 1.0)
+                # Firts pace is pre-work, fator 1
                 fator = 1.0
             elif dist_seg > min_dist_progressao:
-                # Trechos planos seguintes acima de 70% dos 20% progridem (teto de 5% de melhora, fator >= 0.95)
+                # When segment have minimum distance, progress 0,75% to segment valid
+                # Max regress is 0,95% of default pace
                 fator = max(0.95, 1.0 - ((contador_planos - 1) * 0.0075))
             else:
-                # Trecho plano curto (<= 70% dos 20%): mantém o esforço do plano anterior
+                # When segment don't are minimum stay the same fator of last segment
                 fator = ultimo_fator_plano
 
             ultimo_fator_plano = fator
@@ -54,7 +53,7 @@ def calcular_esforcos_e_juntar_blocos(blocos, min_dist_progressao=700):
 
         bloco['fator'] = fator
 
-    # Junta blocos sequenciais (adjacentes) que ficaram com o mesmo esforço
+    # Concat egdegs with same effort
     blocos_juntados = []
     for bloco in blocos:
         if (
@@ -73,7 +72,6 @@ def calcular_esforcos_e_juntar_blocos(blocos, min_dist_progressao=700):
         else:
             blocos_juntados.append(bloco)
 
-    # Identifica o último plano após a junção para o sprint final
     indices_planos = [
         idx for idx, b in enumerate(blocos_juntados, start=1)
         if "PLANO" in str(b.get('relevo', '')).upper()
@@ -84,9 +82,9 @@ def calcular_esforcos_e_juntar_blocos(blocos, min_dist_progressao=700):
         fator_final = bloco['fator']
         is_plano = "PLANO" in str(bloco.get('relevo', '')).upper()
         if i == ultimo_plano and i != 1:
+            # The last plain have one fator extra to finish the run
             fator_final = fator_final * 0.95
 
-        # Teto de 5% de melhora para trechos planos (fator mínimo 0.95 / esforço até -5%)
         if is_plano:
             fator_final = max(0.95, fator_final)
 
@@ -103,7 +101,6 @@ def define_paces_by_segment(bloco_segments, pace):
     for i, segment in enumerate(bloco_segments, start=1):
         fator_final = segment.get('fator')
         if fator_final is None:
-            # Fallback caso algum segmento não tenha passado pelo cálculo prévio
             relevo = str(segment.get('relevo', segment.get('Relevo', ''))).upper()
             inc = segment.get('inc', segment.get('inclinacao_pct', 0))
             if "PLANO" in relevo:

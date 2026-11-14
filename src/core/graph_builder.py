@@ -1,16 +1,16 @@
-import utils as utils
 import networkx as nx
-import utils.utils as utils
-import Enums.enum as enum
-import models.pace_reccom as pr
+import src.utils.utils as utils
+import src.Enums.enum as enum
+import src.models.pace_reccom as pr
 
 TRHESHOLD_INC = 3
 TRHESHOLD_DIST = 430
 
 def points_to_graph(points):
     """
-    Transform list of points in graphs
-    300m to 300m of segments, or edge
+        Transform list of points in graphs
+        430m to 430m of segments, or edge
+        Define inc with +-3
     """
 
     if not points or len(points) < 2:
@@ -100,8 +100,10 @@ def points_to_graph(points):
     return G
 
 def groupByRelevo(G, max_dist=None):
-    # Group egdes to same relevo in sequence, do a super edge
-    # That Node is extremes of conjunt relevos equals
+    """
+    Group egdes to same relevo in sequence, do a super edge
+    That Node is extremes of conjunt relevos equals
+    """
 
     if G is None or G.number_of_edges() == 0:
         return None
@@ -177,15 +179,23 @@ def groupByRelevo(G, max_dist=None):
             'color': enum.ColorByRelevo[relevo_atual.name].value
         })
 
-    # Calcula esforços com base em 70% dos 20% do total (max_dist * 0.70) e junta sequenciais de mesmo esforço
+    # Minimum to progress pace is 14% of distance group
     min_dist_prog = (max_dist * 0.70) if max_dist is not None else 700
     blocos_finais = pr.calcular_esforcos_e_juntar_blocos(blocos, min_dist_progressao=min_dist_prog)
 
+    dist_acum_km = 0.0
     for b in blocos_finais:
+        km_inicio = dist_acum_km
+        km_fim = dist_acum_km + (b['distance'] / 1000.0)
+        dist_acum_km = km_fim
+
         G_grouped.add_edge(
             b['u'],
             b['v'],
             distance=b['distance'],
+            km_inicio=round(km_inicio, 2),
+            km_fim=round(km_fim, 2),
+            km_ref=f"Km {km_inicio:.2f} a {km_fim:.2f}",
             coords=b['coords'],
             relevo=b['relevo'],
             up=b['up'],

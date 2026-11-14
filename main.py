@@ -1,20 +1,18 @@
 import streamlit as st
 import os
-import services.route_services as sv
-import views.chart_view as chvi
-import views.download_view as dwv
+from datetime import time, timedelta
 from streamlit_folium import st_folium
 import pandas as pd
-import Enums.enum as enums
-import json
-from networkx.readwrite import json_graph
-import utils.utils as utils
-from datetime import time, timedelta
-import models.pace_reccom as pr
+
+import src.services.route_services as sv
+import src.views.chart_view as chvi
+import src.views.download_view as dwv
+import src.Enums.enum as enums
+import src.utils.utils as utils
+import src.models.pace_reccom as pr
 
 m = None
 segments = None
-
 
 def _clamp_pace_time():
     """Keep the editable mm:ss pace selector within supported bounds."""
@@ -26,12 +24,11 @@ def _clamp_pace_time():
     total_seconds = max(120, min(959, total_seconds))
     st.session_state["pace_input"] = time(0, total_seconds // 60, total_seconds % 60)
 
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-INPUT_DIR = os.path.join(BASE_DIR, "in")
-OUTPUT_DIR = os.path.join(BASE_DIR, "out")
-IMAGE_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "imagens")
-os.makedirs(IMAGE_OUTPUT_DIR, exist_ok=True)
+def _step_pace(delta_sec):
+    selected = st.session_state.get("pace_input", time(0, 5, 30))
+    total_seconds = selected.hour * 3600 + selected.minute * 60 + selected.second + delta_sec
+    total_seconds = max(120, min(959, total_seconds))
+    st.session_state["pace_input"] = time(0, total_seconds // 60, total_seconds % 60)
 
 st.set_page_config(page_title="Recomendador de Pace", page_icon="🏃", layout="wide")
 st.markdown(
@@ -81,16 +78,23 @@ st.markdown(
 with st.container(border=True):
     st.markdown("### ⏱️ Pace base no plano")
     st.caption("Use um pace um pouco mais lento que sua média alvo. Nas subidas, o ajuste varia conforme a inclinação; nos planos, o ritmo pode progredir gradualmente.")
-    col_input, col_preview = st.columns([1.4, 1])
+    if "pace_input" not in st.session_state:
+        st.session_state["pace_input"] = time(0, 5, 30)
+    col_input, col_minus, col_plus, col_preview = st.columns([1.2, 0.35, 0.35, 1])
     with col_input:
         pace_selecionado = st.time_input(
             "Pace base (00:mm:ss)",
-            value=time(0, 5, 30),
-            step=timedelta(seconds=1),
+            step=timedelta(seconds=5),
             key="pace_input",
             on_change=_clamp_pace_time,
-            help="Use 00 para horas e ajuste os campos de minutos e segundos juntos. Ao passar de 00 ou 59 segundos, os minutos acompanham automaticamente.",
+            help="Use os botões -5s / +5s ao lado ou edite diretamente os minutos e segundos.",
         )
+    with col_minus:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        st.button("➖ 5s", on_click=_step_pace, args=(-5,), use_container_width=True)
+    with col_plus:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        st.button("➕ 5s", on_click=_step_pace, args=(5,), use_container_width=True)
     minutos = pace_selecionado.hour * 60 + pace_selecionado.minute
     segundos = pace_selecionado.second
     with col_preview:
@@ -112,24 +116,21 @@ if mode == "GPX":
         horizontal=True
     )
 
-    # Ao trocar de origem, limpa o cálculo anterior
     if st.session_state.get("origem_rota") != origem:
         st.session_state["origem_rota"] = origem
         st.session_state.pop("calculado", None)
 
     if origem == "Testar com trajeto de exemplo (Viveza)":
-        file_gpx = os.path.join(INPUT_DIR, "Corrida_Viveza.gpx")
+        file_gpx = "in/Corrida_Viveza.gpx"
         st.caption("Trajeto de exemplo: circuito de aproximadamente 5 km no bairro Viveza.")
     else:
         file_gpx = st.file_uploader("Faça upload de um arquivo .GPX", type=["gpx"])
 
     if not file_gpx:
-        # Se o usuário remover o arquivo, limpa o estado
         st.session_state.pop("calculado", None)
         st.info("📂 Envie um arquivo .GPX acima para habilitar o cálculo.")
         st.stop()
 
-    # Botões de Ação lado a lado com visual moderno
     col_btn1, col_btn2 = st.columns([2, 1])
     with col_btn1:
         if st.button("Confirmar pace e calcular", type="primary", use_container_width=True):
@@ -207,6 +208,7 @@ if m:
 
                     table_sheet.append({
                         "Trecho": f"Segmento #{i}",
+                        "Km Referência": seg.get('km_ref', ''),
                         "Relevo": icone,
                         "Distância": f"{seg.get('dist', 0):.0f} m",
                         "Inclinação Média": f"{seg.get('inc', 0):+.1f}%",
@@ -217,7 +219,6 @@ if m:
                 st.dataframe(df_segmentos, use_container_width=True, hide_index=True)
 
     if segments:
-        # Botão único: baixa a pasta output/ (gráfico, tabela CSV, grafo .gexf e output.dat)
         dwv.botao_download_output(
             df_paces, G_grouped, segments, points, dist, up, down,
             f"{minutos:02d}:{segundos:02d} min/km", tempo_total_str, pace_medio_str

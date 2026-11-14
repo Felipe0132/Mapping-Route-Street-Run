@@ -1,7 +1,7 @@
 import folium
 import networkx as nx
 import matplotlib.pyplot as plt
-import Enums.enum as enum
+import src.Enums.enum as enum
 
 def plot_map_grouped(G_grouped):
     if G_grouped is None or G_grouped.number_of_edges() == 0:
@@ -17,14 +17,16 @@ def plot_map_grouped(G_grouped):
         relevo = data.get('relevo')           
         dist = data.get('distance', 0)         
         inc = data.get('inc', 0)        
+        km_ref = data.get('km_ref', '')
         color = data.get('color') or enum.ColorByRelevo[relevo.name].value
 
+        km_txt = f" [{km_ref}]" if km_ref else ""
         folium.PolyLine(
             locations=coords,                                   
             color=color,                                         
             weight=5,                                           
             opacity=0.85,                                      
-            tooltip=f"{relevo}: {dist:.0f}m ({inc:+.1f}%)"      
+            tooltip=f"{relevo}: {dist:.0f}m{km_txt} ({inc:+.1f}%)"      
         ).add_to(m)
 
     folium.CircleMarker(
@@ -69,7 +71,7 @@ def plot_graph_topology(G_grouped, segments=None):
         p1 = edges_list[0][2].get('coords', [[]])[0]
         p2 = edges_list[-1][2].get('coords', [[]])[-1]
         if p1 and p2 and len(p1) >= 2 and len(p2) >= 2:
-            import utils.utils as u_utils
+            import src.utils.utils as u_utils
             d = u_utils.haversine_distance({'lat': p1[0], 'lng': p1[1]}, {'lat': p2[0], 'lng': p2[1]})
             if d <= 250.0:
                 is_circuit = True
@@ -149,13 +151,18 @@ def plot_graph_topology(G_grouped, segments=None):
         # Espessura proporcional ao impacto da inclinação
         edge_widths.append(max(2.5, min(6.0, 2.5 + abs(inc) * 0.4)))
 
-        # Rótulo em cima de cada aresta com relevo, inclinação, distância e esforço
+        # Rótulo em cima de cada aresta com relevo, inclinação, distância, km de referência e esforço
         # (as arestas e os segments estão na mesma ordem)
-        rotulo = f"{relevo_str}  |  {inc:+.1f}%  |  {dist:.0f}m"
+        km_ref = data.get('km_ref')
+        if not km_ref and segments and idx_aresta < len(segments):
+            km_ref = segments[idx_aresta].get('km_ref')
+        km_str = f" ({km_ref})" if km_ref else ""
+
+        rotulo = f"{relevo_str}  |  {inc:+.1f}%  |  {dist:.0f}m{km_str}"
         if segments and idx_aresta < len(segments):
             esforco = segments[idx_aresta].get('esforco_extra_pct')
             if esforco is not None:
-                rotulo += f"  |  Esforço {esforco:+.1f}%"
+                rotulo += f"\nEsforço {esforco:+.1f}%"
         edge_labels[(u, v)] = rotulo
 
     # Desenha arestas direcionadas com curvatura harmônica
@@ -218,7 +225,7 @@ def plot_esforco_relevo_interativo(points, segments, total_dist):
     """
     import altair as alt
     import pandas as pd
-    import utils.utils as utils
+    import src.utils.utils as utils
 
     if not points or not segments:
         return None
@@ -242,6 +249,7 @@ def plot_esforco_relevo_interativo(points, segments, total_dist):
         pct = fator * 100.0
         linhas_seg.append({
             'Trecho': f"Segmento #{idx}",
+            'Km Referência': seg.get('km_ref', f"Km {curr_d / 1000.0:.2f} a {(curr_d + d_seg) / 1000.0:.2f}"),
             'Relevo': nomes.get(seg.get('relevo'), 'Plano'),
             'inicio_km': curr_d / 1000.0,
             'fim_km': (curr_d + d_seg) / 1000.0,
@@ -268,7 +276,7 @@ def plot_esforco_relevo_interativo(points, segments, total_dist):
     })
 
     eixo_x = alt.X('inicio_km:Q', title='Distância da Prova (km)', scale=alt.Scale(domain=[0, total_dist / 1000.0]))
-    tooltip_seg = ['Trecho', 'Relevo', 'Distância (m)', 'Inclinação (%)', 'Pace (% do base)', 'Variação (%)']
+    tooltip_seg = ['Trecho', 'Km Referência', 'Relevo', 'Distância (m)', 'Inclinação (%)', 'Pace (% do base)', 'Variação (%)']
 
     pct_min = min(df_seg['Pace (% do base)'].min(), 100.0) - 5
     pct_max = max(df_seg['Pace (% do base)'].max(), 100.0) + 5
@@ -350,7 +358,7 @@ def plot_esforco_relevo_km(points, segments, total_dist):
     - Subplot 2 (Inferior): Perfil Altimétrico contínuo com áreas sombreadas pelas cores dos relevos.
     """
     import numpy as np
-    import utils.utils as utils
+    import src.utils.utils as utils
 
     # 1. Altimetria contínua
     dists_cum = [0.0]

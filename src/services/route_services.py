@@ -1,6 +1,6 @@
-import collectors.gpx_collector as gpx_collector
-import core.graph_builder as graph_builder
-import utils.utils as utils
+import src.collectors.gpx_collector as gpx_collector
+import src.core.graph_builder as graph_builder
+import src.utils.utils as utils
 
 def process_gpx_route(file_gpx):
     """
@@ -38,11 +38,18 @@ def extract_infs(G_grouped):
         up += data.get('up', 0)
         down += data.get('down', 0)
 
+        km_ini = data.get('km_inicio', (dist_acum - dist) / 1000.0)
+        km_fim = data.get('km_fim', dist_acum / 1000.0)
+        km_ref = data.get('km_ref', f"Km {km_ini:.2f} a {km_fim:.2f}")
+
         segments.append({
             "start":coords[0],
             "end":coords[-1:],
             "relevo":relevo,
             "dist":dist,
+            "km_inicio":km_ini,
+            "km_fim":km_fim,
+            "km_ref":km_ref,
             "inc":inc,
             "fator":data.get('fator', 1.0),
             "esforco_extra_pct":data.get('esforco_extra_pct', 0.0),
@@ -92,6 +99,7 @@ def export_to_gephi(G, filename="grafo_gephi.gexf", segments=None):
     ET.SubElement(edge_attrs, "attribute", {"id": "3", "title": "subida_m", "type": "float"})
     ET.SubElement(edge_attrs, "attribute", {"id": "4", "title": "descida_m", "type": "float"})
     ET.SubElement(edge_attrs, "attribute", {"id": "5", "title": "esforco_pct", "type": "float"})
+    ET.SubElement(edge_attrs, "attribute", {"id": "6", "title": "km_referencia", "type": "string"})
 
     nodes_elem = ET.SubElement(graph_elem, "nodes")
     edges_elem = ET.SubElement(graph_elem, "edges")
@@ -121,7 +129,7 @@ def export_to_gephi(G, filename="grafo_gephi.gexf", segments=None):
             p1 = edges_list[0][2].get('coords', [[]])[0]
             p2 = edges_list[-1][2].get('coords', [[]])[-1]
             if p1 and p2 and len(p1) >= 2 and len(p2) >= 2:
-                import utils.utils as u_utils
+                import src.utils.utils as u_utils
                 d = u_utils.haversine_distance({'lat': p1[0], 'lng': p1[1]}, {'lat': p2[0], 'lng': p2[1]})
                 if d <= 250.0:
                     is_circuit = True
@@ -193,7 +201,13 @@ def export_to_gephi(G, filename="grafo_gephi.gexf", segments=None):
         elif segments and edge_idx < len(segments) and segments[edge_idx].get('esforco_extra_pct') is not None:
             esforco = segments[edge_idx].get('esforco_extra_pct')
 
+        km_ref = data.get('km_ref')
+        if not km_ref and segments and edge_idx < len(segments):
+            km_ref = segments[edge_idx].get('km_ref')
+
         edge_label = f"{relevo_str} | {inc:+.1f}% | {dist:.0f}m"
+        if km_ref:
+            edge_label += f" ({km_ref})"
         if esforco is not None:
             edge_label += f" | Esforço {esforco:+.1f}%"
         
@@ -224,6 +238,8 @@ def export_to_gephi(G, filename="grafo_gephi.gexf", segments=None):
         ET.SubElement(attvalues, "attvalue", {"for": "4", "value": f"{down:.1f}"})
         if esforco is not None:
             ET.SubElement(attvalues, "attvalue", {"for": "5", "value": f"{esforco:.2f}"})
+        if km_ref:
+            ET.SubElement(attvalues, "attvalue", {"for": "6", "value": km_ref})
 
     tree = ET.ElementTree(root)
     tree.write(filename, encoding="utf-8", xml_declaration=True)
@@ -242,16 +258,23 @@ def build_output_zip(df_paces, G_grouped, segments, points, resumo=None):
     import zipfile
     from datetime import datetime
     import matplotlib.pyplot as plt
-    import views.chart_view as chvi
+    import src.views.chart_view as chvi
 
     total_dist = sum(s.get('dist', 0) for s in segments)
 
-    # Imagem do gráfico
+    # Imagem do gráfico de pace x relevo
     img_buf = io.BytesIO()
     fig = chvi.plot_esforco_relevo_km(points, segments, total_dist)
     if fig is not None:
         fig.savefig(img_buf, format="png", dpi=300, bbox_inches="tight")
         plt.close(fig)
+
+    # Imagem da topologia do grafo
+    grafo_img_buf = io.BytesIO()
+    fig_grafo = chvi.plot_graph_topology(G_grouped, segments)
+    if fig_grafo is not None:
+        fig_grafo.savefig(grafo_img_buf, format="png", dpi=300, bbox_inches="tight")
+        plt.close(fig_grafo)
 
     # Tabela CSV
     csv_bytes = df_paces.to_csv(index=False).encode("utf-8-sig")
@@ -274,6 +297,7 @@ def build_output_zip(df_paces, G_grouped, segments, points, resumo=None):
         "",
         "Arquivos nesta pasta:",
         "  - curva_pace_relevo.png  (gráfico de pace x relevo)",
+        "  - grafo_topologia.png  (imagem da topologia do grafo)",
         "  - tabela_ritmo_recomendado.csv  (tabela de ritmos)",
         "  - grafo_gephi.gexf  (grafo para o Gephi)",
         "",
@@ -288,6 +312,8 @@ def build_output_zip(df_paces, G_grouped, segments, points, resumo=None):
     with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
         if img_buf.getbuffer().nbytes:
             zf.writestr("output/curva_pace_relevo.png", img_buf.getvalue())
+        if grafo_img_buf.getbuffer().nbytes:
+            zf.writestr("output/grafo_topologia.png", grafo_img_buf.getvalue())
         zf.writestr("output/tabela_ritmo_recomendado.csv", csv_bytes)
         zf.writestr("output/grafo_gephi.gexf", gexf_buf.getvalue())
         zf.writestr("output/output.dat", "\n".join(linhas))
