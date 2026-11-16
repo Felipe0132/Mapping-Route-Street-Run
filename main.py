@@ -64,7 +64,7 @@ with st.expander("🔎 Sobre o recomendador e como o cálculo funciona", expande
 
         - **Subidas:** o ritmo diminui conforme a inclinação; morros mais longos ou íngremes podem exigir uma redução maior para manter o esforço confortável.
         - **Descidas:** o ritmo pode aumentar, com controle em declives acentuados para reduzir o impacto.
-        - **Trechos planos:** o primeiro trecho aplica um aquecimento leve (+3%, fator 1,03); os seguintes aceleram progressivamente e o último trecho plano recebe o sprint final (fator 0,95 / -5%).
+        - **Trechos planos:** o primeiro trecho aplica um aquecimento (+5%, fator 1,05); os seguintes aceleram progressivamente e o último trecho plano recebe o sprint final (fator 0,95 / -5%).
 
         O modelo considera o custo energético da inclinação (Minetti et al., 2002 / GAP).
         """
@@ -77,7 +77,7 @@ st.markdown(
 
 with st.container(border=True):
     st.markdown("### ⏱️ Pace base no plano")
-    st.caption("Informe um pace parecido com o ritmo médio que você pretende fazer na prova. O sistema inicia com um leve aquecimento (+3%), ajusta o esforço nas subidas/descidas e aplica progressão até o sprint final (-5%).")
+    st.caption("Informe um pace parecido com o ritmo médio que você pretende fazer na prova. O sistema inicia com um aquecimento (+5%), ajusta o esforço nas subidas/descidas e aplica progressão até o sprint final (-5%).")
     if "pace_input" not in st.session_state:
         st.session_state["pace_input"] = time(0, 5, 30)
     col_input, col_minus, col_plus, col_preview = st.columns([1.2, 0.35, 0.35, 1])

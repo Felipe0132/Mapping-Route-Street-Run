@@ -9,7 +9,7 @@ TRHESHOLD_DIST = 320
 def points_to_graph(points):
     """
         Transform list of points in graphs
-        430m to 430m of segments, or edge
+        320m to 320m of segments, or edge
         Define inc with +-3
     """
 

@@ -37,8 +37,8 @@ def calcular_esforcos_e_juntar_blocos(blocos, min_dist_progressao):
         if is_plano:
             contador_planos += 1
             if contador_planos == 1:
-                # 1º trecho plano: aquecimento com fator 1.03 (+3%)
-                fator = 1.03
+                # 1º trecho plano: aquecimento com fator 1.05 (+5%)
+                fator = 1.05
             elif dist_seg > min_dist_progressao:
                 # When segment have minimum distance, progress 0,75% to segment valid
                 # Max regress is 0,95% of default pace
