@@ -6,5 +6,5 @@ class TipoRelevo(str, Enum):
     PLANO = "Plano"
 class ColorByRelevo(str, Enum):
     SUBIDA = "#E74C3C"    
-    DESCIDA = "#2ECC71"  
+    DESCIDA = "#1D8348"  
     PLANO = "#3498DB"      

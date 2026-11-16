@@ -237,7 +237,7 @@ def plot_esforco_relevo_interativo(points, segments, total_dist):
     }
     escala_cor = alt.Scale(
         domain=['Subida', 'Descida', 'Plano'],
-        range=['#E74C3C', '#27AE60', '#2980B9']
+        range=['#E74C3C', '#1D8348', '#2980B9']
     )
 
     # Dados dos segmentos
@@ -374,7 +374,7 @@ def plot_esforco_relevo_km(points, segments, total_dist):
     # 2. Informações estruturadas de cada segmento
     cores_map = {
         enum.TipoRelevo.SUBIDA: ('#E74C3C', 'Subida', '🔺'),
-        enum.TipoRelevo.DESCIDA: ('#27AE60', 'Descida', '🔻'),
+        enum.TipoRelevo.DESCIDA: ('#1D8348', 'Descida', '🔻'),
         enum.TipoRelevo.PLANO: ('#2980B9', 'Plano', '➖')
     }
 

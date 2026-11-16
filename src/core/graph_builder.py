@@ -4,7 +4,7 @@ import src.Enums.enum as enum
 import src.models.pace_reccom as pr
 
 TRHESHOLD_INC = 3
-TRHESHOLD_DIST = 430
+TRHESHOLD_DIST = 320
 
 def points_to_graph(points):
     """
