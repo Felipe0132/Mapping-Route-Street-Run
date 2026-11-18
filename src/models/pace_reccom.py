@@ -83,9 +83,8 @@ def calcular_esforcos_e_juntar_blocos(blocos, min_dist_progressao):
         is_plano = "PLANO" in str(bloco.get('relevo', '')).upper()
         if i == ultimo_plano and i != 1:
             # The last plain have one fator extra to finish the run
-            fator_final = fator_final * 0.95
-
-        if is_plano:
+            fator_final = fator_final * 0.97
+        elif is_plano:
             fator_final = max(0.95, fator_final)
 
         variacao_pct = (fator_final - 1.0) * 100.0

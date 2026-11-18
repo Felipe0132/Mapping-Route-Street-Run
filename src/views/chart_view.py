@@ -79,17 +79,17 @@ def plot_graph_topology(G_grouped, segments=None):
     # Posições (Layout circular para circuito ou linear para reta)
     pos = {}
     if is_circuit:
-        radius = 1.0
+        radius = 1.15
         for idx, node in enumerate(ordered_nodes):
             angle = -math.pi / 2 + (2 * math.pi * idx / total_nodes)
             pos[node] = (radius * math.cos(angle), -radius * math.sin(angle))
-        figsize = (6.5, 5.5)
+        figsize = (7.0, 5.8)
     else:
         for idx, node in enumerate(ordered_nodes):
             pos[node] = (idx * 1.5, 0.0)
         figsize = (min(12, max(7, total_nodes * 1.05)), 2.8)
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=figsize, dpi=220)
 
     # Cores dos nós
     node_colors = []
@@ -97,13 +97,13 @@ def plot_graph_topology(G_grouped, segments=None):
     for idx, node in enumerate(ordered_nodes):
         if idx == 0:
             node_colors.append('#2ECC71')  # Verde (Largada)
-            node_sizes.append(1000)
+            node_sizes.append(1050)
         elif idx == total_nodes - 1 and not is_circuit:
             node_colors.append('#E74C3C')  # Vermelho (Chegada)
-            node_sizes.append(1000)
+            node_sizes.append(1050)
         else:
             node_colors.append('#34495E')  # Cinza escuro azulado
-            node_sizes.append(750)
+            node_sizes.append(520)
 
     # Desenha os nós
     nx.draw_networkx_nodes(
@@ -112,7 +112,7 @@ def plot_graph_topology(G_grouped, segments=None):
         node_color=node_colors,
         node_size=node_sizes,
         edgecolors='#2C3E50',
-        linewidths=1.5,
+        linewidths=1.4,
         ax=ax
     )
 
@@ -120,16 +120,16 @@ def plot_graph_topology(G_grouped, segments=None):
     labels_dict = {}
     for idx, node in enumerate(ordered_nodes):
         if idx == 0:
-            labels_dict[node] = f"{node}\n(Largada)"
+            labels_dict[node] = f"{node}\nLargada"
         elif idx == total_nodes - 1 and not is_circuit:
-            labels_dict[node] = f"{node}\n(Chegada)"
+            labels_dict[node] = f"{node}\nChegada"
         else:
             labels_dict[node] = str(node)
 
     nx.draw_networkx_labels(
         G_grouped, pos,
         labels=labels_dict,
-        font_size=8,
+        font_size=6.5,
         font_color='white',
         font_weight='bold',
         ax=ax
@@ -149,44 +149,47 @@ def plot_graph_topology(G_grouped, segments=None):
 
         edge_colors.append(cor)
         # Espessura proporcional ao impacto da inclinação
-        edge_widths.append(max(2.5, min(6.0, 2.5 + abs(inc) * 0.4)))
+        edge_widths.append(max(2.2, min(5.2, 2.2 + abs(inc) * 0.35)))
 
-        # Rótulo em cima de cada aresta com relevo, inclinação, distância, km de referência e esforço
-        # (as arestas e os segments estão na mesma ordem)
+        # Rótulo compacto em cima de cada aresta (campo reduzido para não sobrepor os nós)
         km_ref = data.get('km_ref')
         if not km_ref and segments and idx_aresta < len(segments):
             km_ref = segments[idx_aresta].get('km_ref')
-        km_str = f" ({km_ref})" if km_ref else ""
+        km_curto = km_ref.replace('Km ', '') + ' km' if km_ref else ''
 
-        rotulo = f"{relevo_str}  |  {inc:+.1f}%  |  {dist:.0f}m{km_str}"
+        esforco = None
         if segments and idx_aresta < len(segments):
             esforco = segments[idx_aresta].get('esforco_extra_pct')
-            if esforco is not None:
-                rotulo += f"\nEsforço {esforco:+.1f}%"
-        edge_labels[(u, v)] = rotulo
+        if esforco is None:
+            esforco = data.get('esforco_extra_pct')
+
+        esf_str = f" | Esf. {esforco:+.1f}%" if esforco is not None else ""
+        linha1 = f"{relevo_str} ({inc:+.1f}%){esf_str}"
+        linha2 = f"{dist:.0f}m" + (f" ({km_curto})" if km_curto else "")
+        edge_labels[(u, v)] = f"{linha1}\n{linha2}"
 
     # Desenha arestas direcionadas com curvatura harmônica
-    rad = 0.15 if is_circuit else 0.1
+    rad = 0.14 if is_circuit else 0.1
     nx.draw_networkx_edges(
         G_grouped, pos,
         edgelist=[(u, v) for u, v, _ in edges_list],
         edge_color=edge_colors,
         width=edge_widths,
         arrows=True,
-        arrowsize=18,
+        arrowsize=15,
         arrowstyle='-|>',
         connectionstyle=f"arc3,rad={rad}",
-        node_size=900,
+        node_size=600,
         ax=ax
     )
 
-    # Desenha os rótulos de cada aresta
+    # Desenha os rótulos de cada aresta (campo reduzido)
     nx.draw_networkx_edge_labels(
         G_grouped, pos,
         edge_labels=edge_labels,
-        font_size=6.5,
+        font_size=5.4,
         font_weight='bold',
-        bbox=dict(boxstyle='round,pad=0.2', facecolor='white', edgecolor='#BDC3C7', alpha=0.85),
+        bbox=dict(boxstyle='round,pad=0.14', facecolor='white', edgecolor='#BDC3C7', alpha=0.92),
         connectionstyle=f"arc3,rad={rad}",
         ax=ax
     )
@@ -203,14 +206,15 @@ def plot_graph_topology(G_grouped, segments=None):
         f"Perda de elevação: -{total_down:.0f} m"
     )
 
-    ax.set_title(f"Topologia do Grafo Ponderado - {title_desc}", fontsize=11, fontweight='bold', pad=30)
+    ax.set_title(f"Topologia do Grafo Ponderado - {title_desc}", fontsize=10.5, fontweight='bold', pad=18)
     ax.text(
-        0.5, 1.02, resumo,
+        0.5, 1.01, resumo,
         transform=ax.transAxes,
         ha='center', va='bottom',
-        fontsize=8.5,
-        bbox=dict(boxstyle='round,pad=0.35', facecolor='#F4F6F7', edgecolor='#BDC3C7')
+        fontsize=8.0,
+        bbox=dict(boxstyle='round,pad=0.28', facecolor='#F4F6F7', edgecolor='#BDC3C7')
     )
+    ax.margins(0.07)
     ax.axis('off')
     plt.tight_layout()
 
@@ -422,7 +426,7 @@ def plot_esforco_relevo_km(points, segments, total_dist):
     # ------------------ SUBPLOT SUPERIOR: CURVA DE PACE (% DO BASE) ------------------
     all_pcts = [s['pct'] for s in seg_info]
     min_p, max_p = min(all_pcts), max(all_pcts)
-    ax_pace.set_ylim(min(82.0, min_p - 8), max(118.0, max_p + 14))
+    ax_pace.set_ylim(min(82.0, min_p - 8), max(118.0, max_p + 20))
     ax_pace.set_xlim(0, total_km)
 
     # Linha neutra de referência em 100% (Pace Base no Plano)
@@ -461,7 +465,7 @@ def plot_esforco_relevo_km(points, segments, total_dist):
         largura_km = s['end_km'] - s['start_km']
         ax_pace.plot(x_mid, s['pct'], marker='o', markersize=4.5, color=s['color'], markeredgecolor='white', markeredgewidth=0.9, zorder=5)
 
-        if largura_km >= 0.9:
+        if largura_km >= 0.30:
             y_text = s['pct'] + 2.3 if s['pct'] >= 100.0 else s['pct'] - 2.8
             ax_pace.text(
                 x_mid,

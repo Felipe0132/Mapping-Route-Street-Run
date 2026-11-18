@@ -136,24 +136,24 @@ def export_to_gephi(G, filename="grafo_gephi.gexf", segments=None):
 
     import math
 
-    # Raio do círculo caso seja circuito, ou espaçamento linear caso seja ponto-a-ponto
-    radius = max(200.0, total_nodes * 45.0)
-    spacing_x = 220.0
+    # Raio reduzido para compactar o campo visual do grafo no Gephi
+    radius = 70.0
+    spacing_x = 110.0
 
     # Cria nós com coordenadas visuais (x, y), tamanho e cor
     for idx, node_id in enumerate(ordered_nodes):
         if idx == 0:
             node_label = f"Largada ({node_id})"
             node_color = (46, 204, 113)  # Verde esmeralda para largada
-            node_size = 24.0
+            node_size = 8.0
         elif idx == total_nodes - 1 and not is_circuit:
             node_label = f"Chegada ({node_id})"
             node_color = (231, 76, 60)   # Vermelho para chegada
-            node_size = 24.0
+            node_size = 8.0
         else:
-            node_label = f"Ponto {node_id}"
+            node_label = f"{node_id}"
             node_color = (52, 73, 94)    # Neutro para nós intermediários
-            node_size = 15.0
+            node_size = 6.0
 
         n_tag = ET.SubElement(nodes_elem, "node", {
             "id": str(node_id),
@@ -205,14 +205,15 @@ def export_to_gephi(G, filename="grafo_gephi.gexf", segments=None):
         if not km_ref and segments and edge_idx < len(segments):
             km_ref = segments[edge_idx].get('km_ref')
 
-        edge_label = f"{relevo_str} | {inc:+.1f}% | {dist:.0f}m"
-        if km_ref:
-            edge_label += f" ({km_ref})"
+        km_curto = km_ref.replace("Km ", "") + " km" if km_ref else ""
+        edge_label = f"{relevo_str} ({inc:+.1f}%) | {dist:.0f}m"
+        if km_curto:
+            edge_label += f" [{km_curto}]"
         if esforco is not None:
-            edge_label += f" | Esforço {esforco:+.1f}%"
+            edge_label += f" | Esf. {esforco:+.1f}%"
         
         # Espessura visual proporcional ao impacto do trecho
-        edge_weight = max(2.0, min(10.0, 2.0 + abs(inc)))
+        edge_weight = max(1.0, min(2.8, 1.0 + abs(inc) * 0.22))
 
         e_tag = ET.SubElement(edges_elem, "edge", {
             "id": str(edge_idx),

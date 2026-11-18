@@ -75,7 +75,7 @@ $$d = 2R \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta\phi}{2}\right) + \cos(\phi_
 
 onde $R \approx 6371\text{ km}$ representa o raio médio da Terra, $\Delta\phi = \phi_{k+1} - \phi_k$ e $\Delta\lambda = \lambda_{k+1} - \lambda_k$.
 
-Como os pontos do GPX possuem espaçamento não uniforme, o algoritmo acumula a distância geodésica entre pontos consecutivos até atingir ou ultrapassar o limiar de **430 m**, fechando o bloco no primeiro ponto que alcança esse valor (um eventual trecho restante no final da rota também é mantido como bloco). Para cada bloco, calcula-se a inclinação fracionária $i$ e percentual $i_{\mathrm{pct}}$ pela diferença líquida de elevação ($\Delta z$) entre os seus extremos dividida pela distância acumulada $d$:
+Como os pontos do GPX possuem espaçamento não uniforme, o algoritmo acumula a distância geodésica entre pontos consecutivos até atingir ou ultrapassar o limiar de **320 m**, fechando o bloco no primeiro ponto que alcança esse valor (um eventual trecho restante no final da rota também é mantido como bloco). Para cada bloco, calcula-se a inclinação fracionária $i$ e percentual $i_{\mathrm{pct}}$ pela diferença líquida de elevação ($\Delta z$) entre os seus extremos dividida pela distância acumulada $d$:
 
 $$i = \frac{\Delta z}{d}, \qquad i_{\mathrm{pct}} = i \times 100$$
 
@@ -113,7 +113,7 @@ $$F_e = \frac{C_r(i)}{C_r(0)} = \frac{C_r(i)}{3,6}, \qquad P_{\mathrm{seg}} = P_
 
 A alocação de ritmo percorre os blocos ordenados e aplica quatro regras implementadas:
 
-1. **Primeiro Trecho Plano:** O primeiro bloco classificado como plano recebe o fator $F = 1,0$ (`+0,0%`), correspondente ao *pace* base (sem acréscimo de aquecimento).
+1. **Primeiro Trecho Plano (Aquecimento):** O primeiro bloco classificado como plano recebe o fator $F = 1,05$ (`+5,0%`), iniciando 5% mais lento que o *pace* base.
 2. **Progressão em Trechos Planos (Limiar de 14% da Rota):** O código utiliza 70% do limite estrutural de 20%, equivalente a **14% da distância total da rota**. Blocos planos posteriores com extensão superior a esse limiar recebem um fator que reduz o *pace* em **0,75% por posição de trecho plano**, com fator mínimo de $0,95$. Blocos planos menores mantêm o fator do trecho plano anterior. Se houver mais de um bloco plano, o **último bloco plano** recebe ainda um fator adicional de $0,95$, respeitado o limite mínimo de $0,95$ (`-5,0%`).
 3. **Ajuste em Aclives:** Em segmentos de subida ($i_{\mathrm{pct}} \ge +3\%$), o ritmo é multiplicado pelo fator $F_e$ calculado pelo polinómio de Minetti.
 4. **Limite Aplicado às Descidas (*Downhill Capping* a -2%):** Antes de avaliar o polinómio, inclinações inferiores a **-2%** são limitadas a $-2\%$ ($i = -0,02$):
@@ -135,12 +135,12 @@ flowchart TD
 
     subgraph Modelagem_em_Grafo
         Col["Extração de <trkpt>\n(Remoção de duplicados consecutivos)"]
-        Seg["Segmentação Geodésica (Haversine)\nBlocos >= 430 m e Classificação (-3% / +3%)"]
+        Seg["Segmentação Geodésica (Haversine)\nBlocos >= 320 m e Classificação (-3% / +3%)"]
         Agrup1["Agrupamento Inicial (<= 20% da rota)\nInclinação repr. = max(|i|)"]
     end
 
     subgraph Prescricao_de_Pace
-        Regras["Cálculo do Fator de Esforço (F)\n• 1º Plano: F = 1.00\n• Planos > 14% rota: -0.75%/pos (último 0.95)\n• Subidas: Minetti Cr(i)/3.6\n• Descidas: Minetti limitado a i = -0.02"]
+        Regras["Cálculo do Fator de Esforço (F)\n• 1º Plano: F = 1.05 (+5%)\n• Planos > 14% rota: -0.75%/pos (último 0.95)\n• Subidas: Minetti Cr(i)/3.6\n• Descidas: Minetti limitado a i = -0.02"]
         Agrup2["União Pós-Fator\nFusão de blocos adjacentes com mesmo relevo\ne fator igual (4 casas decimais)"]
     end
 
@@ -159,18 +159,17 @@ flowchart TD
 
 ## 📊 Resultados de Exemplo: Rota "Corrida Viveza"
 
-O processamento computacional da rota `in/Corrida_Viveza.gpx` (distância de **4.956 m**, ganho e perda acumulados de elevação de **75 m** cada) com *pace* base de **`05:30 min/km`** resultou em **7 segmentos**, tempo total estimado de **`27:29`** e *pace* médio estimado de **`05:32 min/km`** (`+0,9%`):
+O processamento computacional da rota `in/Corrida_Viveza.gpx` (distância de **4.956 m**, ganho e perda acumulados de elevação de **75 m** cada) com *pace* base de **`05:30 min/km`** resultou em **6 segmentos**, tempo total estimado de **`28:49`** e *pace* médio estimado de **`05:48 min/km`** (`+5,8%`):
 
-| Trecho | Relevo | Distância (m) | Inclinação representativa (%) | Ajuste / Esforço (%) | Pace sugerido | Tempo |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Segmento #1** | Plano | 862 | -0,3% | +0,0% | 05:30 min/km | 04:44 |
-| **Segmento #2** | Plano | 865 | +1,2% | -0,8% | 05:27 min/km | 04:43 |
-| **Segmento #3** | Subida | 430 | +6,4% | +39,4% | 07:39 min/km | 03:17 |
-| **Segmento #4** | Plano | 430 | +2,4% | -0,8% | 05:27 min/km | 02:20 |
-| **Segmento #5** | Descida | 432 | -6,5% | -10,3% | 04:55 min/km | 02:07 |
-| **Segmento #6** | Plano | 863 | -1,3% | -2,2% | 05:22 min/km | 04:38 |
-| **Segmento #7** | Plano | 1072 | -1,4% | -5,0% | 05:13 min/km | 05:36 |
-| **Total / Geral** | — | **4956** | — | **+0,9%** | **05:32 min/km** | **27:29** |
+| Trecho | Km Referência | Relevo | Distância (m) | Inclinação (%) | Ajuste / Esforço (%) | Pace sugerido | Tempo |
+| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
+| **Segmento #1** | Km 0.00 a 1.61 | Plano | 1608 | +1,9% | +5,0% | 05:46 min/km | 09:17 |
+| **Segmento #2** | Km 1.61 a 2.25 | Subida | 642 | +7,7% | +49,1% | 08:12 min/km | 05:15 |
+| **Segmento #3** | Km 2.25 a 2.57 | Plano | 324 | +1,0% | +5,0% | 05:46 min/km | 01:52 |
+| **Segmento #4** | Km 2.57 a 3.21 | Descida | 642 | -7,8% | -10,3% | 04:55 min/km | 03:09 |
+| **Segmento #5** | Km 3.21 a 4.18 | Plano | 968 | -1,7% | -2,2% | 05:22 min/km | 05:12 |
+| **Segmento #6** | Km 4.18 a 4.96 | Plano | 773 | -0,5% | -5,9% | 05:10 min/km | 04:00 |
+| **Total / Geral** | **Km 0.00 a 4.96** | — | **4956** | — | **+5,6%** | **05:48 min/km** | **28:47** |
 
 <details>
 <summary><b>🔍 Observação sobre o Segmento #7 (Clique para expandir)</b></summary>
@@ -185,7 +184,7 @@ A aplicação do limite estrutural de 20% (991 m) no agrupamento inicial não im
 ```text
 ├── collectors/         # Leitura de pontos <trkpt> do GPX e remoção de duplicados consecutivos
 │   └── gpx_collector.py
-├── core/               # Segmentação (>= 430m), agrupamento (<= 20% rota, max |i|) e grafo NetworkX
+├── core/               # Segmentação (>= 320m), agrupamento (<= 20% rota, max |i|) e grafo NetworkX
 │   └── graph_builder.py
 ├── models/             # Polinómio de Minetti et al. (2002), progressão plana e fusão pós-fator
 │   └── pace_reccom.py
