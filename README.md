@@ -1,262 +1,249 @@
 <div align="center">
 
-# 🏃 Pace Recommender By Route
+# 🏃 Sistema de Recomendação de Pace com Parâmetros de Elevação
 
-**Sistema de Recomendação de Pace com Parâmetros de Elevação Baseado em Grafos Direcionados e Custo Metabólico de Minetti**
+**Modelagem de Percursos GPX em Grafos Direcionados Ponderados e Prescrição de Ritmo Baseada no Custo Metabólico de Minetti**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04_LTS-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![NetworkX](https://img.shields.io/badge/NetworkX-Graph_Theory-2b8cbe?style=for-the-badge)](https://networkx.org/)
-[![Zenodo](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.23809922-blue?style=for-the-badge)](https://doi.org/10.5281/zenodo.23809922)
-[![CEFET-MG](https://img.shields.io/badge/CEFET--MG-Campus_V-004b87?style=for-the-badge)](https://www.divinopolis.cefetmg.br/)
+[![Zenodo](https://img.shields.io/badge/Dataset_DOI-10.5281%2Fzenodo.23809922-004b87?style=for-the-badge)](https://doi.org/10.5281/zenodo.23809922)
 
-[Visão Geral](#-por-que-o-pace-médio-linear-falha) •
-[Demonstração](#-demonstração-da-aplicação) •
-[Modelagem Matemática](#-fundamentação-científica-e-modelagem-matemática) •
-[Resultados](#-resultados-de-exemplo-rota-corrida-viveza) •
-[Como Executar](#-como-executar-localmente)
+[Sobre o Projeto](#-sobre-o-projeto) •
+[Fluxo Algorítmico](#-arquitetura-e-fluxo-algorítmico) •
+[Modelagem Matemática](#-modelagem-matemática-e-regras-de-prescrição) •
+[Complexidade](#-complexidade-e-escalabilidade) •
+[Resultados](#-resultados-rota-corrida-viveza) •
+[Como Executar](#-como-executar-no-linux-ubuntu-2404) •
+[Referências](#-referências-científicas)
 
 </div>
 
 ---
 
-O **Pace Recommender By Route** é uma aplicação em Python e Streamlit projetada para corredores, treinadores e atletas de endurance. Ela processa rotas GPS (`.gpx`), representa o percurso como um **grafo direcionado ponderado** $G = (V, E)$, classifica os blocos topográficos pela altimetria e prescreve uma **estratégia de ritmo (*pace*) por trecho**, fundamentada no conceito de **GAP (*Grade Adjusted Pace*)** e no polinómio de custo energético de **Minetti et al. (2002)**.
+## 📌 Identificação Acadêmica
 
-> [!NOTE]
-> **Artigo Científico:** *Sistema de Recomendação de Pace com Parâmetros de Elevação*  
-> **Autores:** Felipe Silva (`felipe.silva@aluno.cefetmg.br`) & Michel Pires da Silva (`michel@cefetmg.br`) — Departamento de Computação, CEFET-MG Campus V, Divinópolis, Brasil.
-
----
-
-## 🎯 Por que o Pace Médio Linear Falha?
-
-Na prática, o planeamento de prova costuma dividir a distância total em blocos (por exemplo, de 20% cada) e distribuir o *pace* entre eles com uma largada controlada e aceleração gradual. Essa divisão funciona bem em percursos planos, mas falha quando o trajeto apresenta variações de relevo, pois a mesma velocidade exige esforços fisiológicos muito diferentes conforme a inclinação:
-
-* **🔺 Subidas (Aclives $\ge +3\%$):** O trabalho mecânico positivo contra a gravidade eleva de maneira não linear o custo energético. Tentar manter o *pace* plano em aclives gera desgaste metabólico precoce.
-* **🔻 Descidas (Declives $< -3\%$):** O custo metabólico diminui, mas ocorrem alterações acentuadas nas forças de reação do solo e impacto excêntrico, exigindo um limite técnico de velocidade nas descidas.
-* **➖ Trechos Planos ($-3\% \le \text{inclinação} < +3\%$):** Permitem sustentar o ritmo de referência e aplicar regras estruturadas de progressão ao longo da prova.
-
-Enquanto o **GAP (*Grade Adjusted Pace*)** tradicional converte o *pace* realizado numa inclinação qualquer no *pace* equivalente em terreno plano, este trabalho explora o **sentido inverso como ferramenta de planeamento**: estimar um ritmo alvo por trecho a partir de uma referência em terreno plano.
+| Campo | Descrição |
+| :--- | :--- |
+| **Instituição** | Centro Federal de Educação Tecnológica de Minas Gerais (CEFET-MG) — Campus V (Divinópolis) |
+| **Disciplina** | Estruturas em Árvores e Teoria dos Grafos |
+| **Autores** | **Felipe Silva** (`felipe.silva@aluno.cefetmg.br`) & **Prof. Michel Pires da Silva** (`michel@cefetmg.br`) |
+| **Dataset Oficial** | [Zenodo — DOI: 10.5281/zenodo.23809922](https://doi.org/10.5281/zenodo.23809922) |
+| **Repositório** | [github.com/Felipe0132/Pace-Recommender-By-Route](https://github.com/Felipe0132/Pace-Recommender-By-Route) |
 
 ---
 
-## 📸 Demonstração da Aplicação
+## 🎯 Sobre o Projeto
 
-### 1. Mapa Interativo e Detalhamento da Rota
-A rota GPX é dividida em macro-segmentos topográficos (Plano, Subida, Descida), renderizados num mapa interativo Leaflet/Folium e catalogados com distância, ganhos/perdas de elevação e inclinação representativa:
+No planejamento de corridas de rua, a divisão tradicional do ritmo (*pace*, em $\text{min/km}$) por quilômetros fechados ou frações fixas da distância funciona bem em percursos planos, mas perde precisão quando o trajeto apresenta variações de relevo. Manter a mesma velocidade em subidas e descidas exige esforços fisiológicos muito distintos.
 
-<div align="center">
-  <img src="assets/exemplo_mapa_segmentos.png" alt="Mapa Interativo e Segmentação por Relevo" width="850"/>
-</div>
+Enquanto o **GAP (*Grade Adjusted Pace*)** tradicional converte o *pace* realizado em uma inclinação qualquer para o ritmo equivalente em terreno plano, este projeto aplica a **operação inversa para o planejamento pré-prova**: a partir de um *pace* base informado para o plano, o sistema mapeia a rota GPX como um **grafo direcionado ponderado** $G = (V, E)$, agrupa o percurso em segmentos topográficos inteligentes e prescreve o *pace* ideal para cada trecho.
 
-### 2. Ritmo Recomendado por Segmento e Métricas Totais
-Ao definir o *pace* base em terreno plano (ex.: `05:30 min/km`), o sistema calcula o fator de esforço relativo, o *pace* sugerido e o tempo estimado de cada bloco, além da linha totalizadora da prova:
-
-<div align="center">
-  <img src="assets/exemplo_ritmo_recomendado.png" alt="Tabela de Ritmo Recomendado por Segmento e Linha Totalizadora" width="850"/>
-</div>
-
-### 3. Topologia do Grafo Ponderado & Exportação para o Gephi
-A rota é modelada como um grafo direcionado com vértices sintéticos nas fronteiras dos blocos topográficos, gerando gráficos de perfil altimétrico vs. ritmo (`out/imagens/curva_pace_relevo_exportada.png`) e permitindo a exportação em `.gexf` (`out/grafo_gephi.gexf`) para análise no **Gephi**:
-
-<div align="center">
-  <img src="assets/exemplo_topologia_grafo.png" alt="Topologia do Grafo Ponderado e Exportação Gephi" width="850"/>
-</div>
+### Principais Funcionalidades
+- **Extração e filtragem GPX:** Leitura sequencial de latitude, longitude e elevação com remoção de pontos consecutivos duplicados.
+- **Modelagem em grafo direcionado (`NetworkX`):** Representação compacta em que os vértices demarcam fronteiras topográficas e as arestas acumulam distância horizontal, altimetria, quilometragem de referência (`km_ref`), classe de relevo e fator de esforço.
+- **Cálculo metabólico e biomecânico:** Ajuste de ritmo baseado no polinômio de 5ª ordem de **Minetti et al. (2002)**, combinado a regras de aquecimento, progressão em planos, sprint final e trava de segurança articular em descidas.
+- **Visualização e exportação completa (`output.zip`):** Mapa interativo Folium/Leaflet, curva de pace vs. perfil altimétrico (Altair e Matplotlib), diagrama topológico do grafo, exportação nativa pré-configurada para o **Gephi (`.gexf`)**, tabela `.csv` e relatório `.dat`.
 
 ---
 
-## 🔬 Fundamentação Científica e Modelagem Matemática
+## 🔄 Arquitetura e Fluxo Algorítmico
 
-### 1. Extração GPX, Distância de Haversine e Segmentação ($\ge 430\text{ m}$)
+Os diagramas de atividades abaixo detalham o ciclo de vida completo da solução, desde a leitura do arquivo GPX até a ponderação do fator de esforço ($F$) e fusão das arestas no grafo:
 
-O coletor lê a sequência de pontos de trilha (`<trkpt>`) do ficheiro GPX (latitude $\phi$, longitude $\lambda$ e elevação $z$), removendo pontos consecutivos cujos três valores sejam idênticos. A distância horizontal $d$ (em metros) entre pontos consecutivos é determinada pela **fórmula de Haversine** sobre os pares de coordenadas em radianos:
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="out/imagens/uml_atividades_fluxo_geral_pace.png" alt="Fluxo Geral do Sistema" width="100%"/><br/>
+      <sub><b>Figura 1:</b> Diagrama de atividades do fluxo geral de construção do grafo e prescrição de <i>pace</i>.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="out/imagens/uml_atividades_fator_de_esforco.png" alt="Fluxo de Cálculo do Fator de Esforço" width="100%"/><br/>
+      <sub><b>Figura 2:</b> Diagrama de atividades do cálculo do fator de esforço (<i>F</i>), fusão de blocos equivalentes e registro de quilometragem.</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 📐 Modelagem Matemática e Regras de Prescrição
+
+### 1. Distância Geodésica de Haversine e Segmentação Inicial ($\ge 320\text{ m}$)
+Para cada par de pontos consecutivos do arquivo GPX, a distância horizontal $d$ (em metros) é calculada pela **fórmula de Haversine** sobre as coordenadas em radianos ($\phi$ = latitude, $\lambda$ = longitude, $R = 6371\text{ km}$):
 
 $$d = 2R \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta\phi}{2}\right) + \cos(\phi_k)\cos(\phi_{k+1})\sin^2\left(\frac{\Delta\lambda}{2}\right)}\right)$$
 
-onde $R \approx 6371\text{ km}$ representa o raio médio da Terra, $\Delta\phi = \phi_{k+1} - \phi_k$ e $\Delta\lambda = \lambda_{k+1} - \lambda_k$.
+Os deslocamentos são acumulados até atingir ou ultrapassar o limiar de **$320\text{ m}$** (`TRHESHOLD_DIST = 320`), fechando uma aresta no grafo inicial (`G_segment`). A inclinação fracionária $i$ e percentual $i_{\%}$ do bloco são obtidas pela variação líquida de altitude ($\Delta z$) entre seus extremos:
 
-Como os pontos do GPX possuem espaçamento não uniforme, o algoritmo acumula a distância geodésica entre pontos consecutivos até atingir ou ultrapassar o limiar de **320 m**, fechando o bloco no primeiro ponto que alcança esse valor (um eventual trecho restante no final da rota também é mantido como bloco). Para cada bloco, calcula-se a inclinação fracionária $i$ e percentual $i_{\mathrm{pct}}$ pela diferença líquida de elevação ($\Delta z$) entre os seus extremos dividida pela distância acumulada $d$:
+$$i = \frac{\Delta z}{d}, \qquad i_{\%} = i \times 100$$
 
-$$i = \frac{\Delta z}{d}, \qquad i_{\mathrm{pct}} = i \times 100$$
-
-Cada aresta é classificada em três categorias topográficas:
-* **Subida (Aclive):** $i_{\mathrm{pct}} \ge +3\%$
-* **Descida (Declive):** $i_{\mathrm{pct}} < -3\%$
-* **Plano:** $-3\% \le i_{\mathrm{pct}} < +3\%$
+Cada bloco recebe uma classificação topográfica:
+- **🔺 Subida (Aclive):** $i_{\%} \ge +3\%$
+- **🔻 Descida (Declive):** $i_{\%} < -3\%$
+- **➖ Plano:** $-3\% \le i_{\%} < +3\%$
 
 ---
 
-### 2. Contração de Arestas e Agrupamento de Blocos
-
-Para simplificar a topologia da rede (*edge contraction*) e evitar micro-arestas redundantes, o agrupamento ocorre em duas fases:
-1. **Agrupamento Inicial (Limite Estrutural de 20%):** Blocos adjacentes da mesma classe de relevo são agrupados desde que a soma das suas distâncias não ultrapasse **20% da distância total da rota**. Para cada grupo, a **inclinação representativa** é selecionada pelo **maior valor absoluto** ($\max \vert{}i\vert{}$) entre as inclinações dos blocos que o compõem, e não por uma média ponderada.
-2. **União Pós-Fator:** Após a atribuição dos fatores de esforço, blocos adjacentes da mesma classe que tenham fatores iguais (com comparação arredondada a quatro casas decimais) são unidos. Essa etapa final pode resultar num bloco com extensão superior ao limite estrutural de 20% aplicado no agrupamento inicial.
+### 2. Contração de Arestas em Duas Fases (`G_grouped`)
+1. **Agrupamento Estrutural (Teto de 20% da Rota):** Arestas adjacentes de mesma classe de relevo são fundidas enquanto a soma de suas distâncias não exceder **20% da distância total da prova**. A inclinação representativa atribuída ao grupo é a de **maior valor absoluto** ($\max |i_{\%}|$) entre seus blocos originais.
+2. **Fusão Pós-Fator:** Após o cálculo do fator de esforço de cada grupo, blocos vizinhos de mesma classe cujos fatores coincidam até a 4ª casa decimal são unidos em uma única super-aresta, recalculando a distância acumulada, a inclinação máxima e o marcador quilométrico (`Km início a fim`).
 
 ---
 
-### 3. Polinómio de 5ª Ordem de Minetti e Fator de Esforço ($F_e$)
+### 3. Polinômio de Minetti et al. (2002) e Regras de Calibração
+O custo energético relativo da corrida $C_r(i)$ (em $\text{J}\cdot\text{kg}^{-1}\cdot\text{m}^{-1}$) em função da inclinação fracionária $i$ é estimado pelo polinômio de quinto grau de Minetti et al. (2002):
 
-Para avaliar o impacto da inclinação representativa $i$ de cada bloco, aplica-se o polinómio de quinta ordem de **Minetti et al. (2002)**, que estima o custo energético relativo $C_r(i)$ (em $\text{J}\cdot\text{kg}^{-1}\cdot\text{m}^{-1}$):
+$$C_r(i) = 155,4i^5 - 30,4i^4 - 43,3i^3 + 46,3i^2 + 19,5i + 3,6$$
 
-$$C_r(i) = 155,4 i^5 - 30,4 i^4 - 43,3 i^3 + 46,3 i^2 + 19,5 i + 3,6$$
+A razão entre $C_r(i)$ e o custo basal em terreno plano ($C_r(0) = 3,6\text{ J}\cdot\text{kg}^{-1}\cdot\text{m}^{-1}$) define o fator metabólico $F_e$:
 
-Comparando o custo na inclinação $C_r(i)$ com o custo basal em terreno plano $C_r(0) = 3,6\text{ J}\cdot\text{kg}^{-1}\cdot\text{m}^{-1}$, define-se o fator de esforço relativo $F_e$ e o ritmo ajustado do segmento ($P_{\mathrm{seg}}$) a partir do *pace* base ($P_{\mathrm{base}}$):
+$$F_e = \frac{C_r(i)}{C_r(0)} = \frac{C_r(i)}{3,6}, \qquad P_{\text{seg}} = P_{\text{base}} \times F$$
 
-$$F_e = \frac{C_r(i)}{C_r(0)} = \frac{C_r(i)}{3,6}, \qquad P_{\mathrm{seg}} = P_{\mathrm{base}} \times F_e$$
-
-> [!TIP]
-> **Recomendação de Uso:** Recomenda-se informar um *pace* base ligeiramente mais lento que a média alvo da prova, pois a adaptação do ritmo em aclives depende da inclinação dos blocos, enquanto os trechos planos podem progredir segundo as regras do modelo.
-
----
-
-### 4. Regras de Prescrição e Calibração de Pace
-
-A alocação de ritmo percorre os blocos ordenados e aplica quatro regras implementadas:
-
-1. **Primeiro Trecho Plano (Aquecimento):** O primeiro bloco classificado como plano recebe o fator $F = 1,05$ (`+5,0%`), iniciando 5% mais lento que o *pace* base.
-2. **Progressão em Trechos Planos (Limiar de 14% da Rota):** O código utiliza 70% do limite estrutural de 20%, equivalente a **14% da distância total da rota**. Blocos planos posteriores com extensão superior a esse limiar recebem um fator que reduz o *pace* em **0,75% por posição de trecho plano**, com fator mínimo de $0,95$. Blocos planos menores mantêm o fator do trecho plano anterior. Se houver mais de um bloco plano, o **último bloco plano** recebe ainda um fator adicional de $0,95$, respeitado o limite mínimo de $0,95$ (`-5,0%`).
-3. **Ajuste em Aclives:** Em segmentos de subida ($i_{\mathrm{pct}} \ge +3\%$), o ritmo é multiplicado pelo fator $F_e$ calculado pelo polinómio de Minetti.
-4. **Limite Aplicado às Descidas (*Downhill Capping* a -2%):** Antes de avaliar o polinómio, inclinações inferiores a **-2%** são limitadas a $-2\%$ ($i = -0,02$):
-
-$$i_{\mathrm{ajustado}} = \max(i, -0,02)$$
-
-Assim, para uma descida de $-6,5\%$, o cálculo de custo utiliza $-2\%$, limitando o ganho de velocidade estimado em descidas acentuadas (`-10,3%`).
+As quatro regras aplicadas na sequência dos blocos são:
+1. **Aquecimento no 1º trecho plano:** O primeiro bloco plano recebe $F = 1,05$ (`+5,0%`), iniciando $5\%$ mais lento que o *pace* base.
+2. **Progressão nos planos intermediários (Limiar de 14% da prova):** A distância mínima para progressão é $70\%$ do limite estrutural de agrupamento, o que equivale a **$14\%$ da rota total**. Nos blocos planos seguintes ($k \ge 2$) com extensão $> 14\%$ da prova, o ritmo progride $0,75\%$ por posição com um verificador que trava o piso dos trechos intermediários em $0,95$:
+   $$F = \max\big(0,95;\; 1,0 - 0,0075(k - 1)\big)$$
+   Blocos planos curtos ($\le 14\%$ da rota) mantêm o fator do bloco plano anterior (e fundem-se a ele caso sejam vizinhos).
+3. **Sprint no último trecho plano:** Se houver mais de um segmento plano após a fusão, o último segmento plano recebe um estímulo extra de chegada multiplicando seu fator acumulado por **$0,97$** ($F_{\text{final}} = F \times 0,97$), sem a trava de $0,95$ aplicada aos blocos intermediários.
+4. **Limite biomecânico em descidas (`-2%`):** Em declives ($i_{\%} < -3\%$), inclinações inferiores a $-2\%$ são truncadas em $i = -0,02$ antes de avaliar $C_r(i)$, restringindo a redução do *pace* a **`-10,3%`** ($F_e \approx 0,897$) para conter o impacto articular e a sobrecarga excêntrica.
 
 ---
 
-### 5. Fluxograma da Pipeline Algorítmica
+## ⚡ Complexidade e Escalabilidade
 
-```mermaid
-flowchart TD
-    subgraph Entrada
-        P_base["Pace Base no Plano (P_base)\n(ex: 05:30 min/km)"]
-        GPX["Ficheiro GPX\n(Lat, Lon, Elevação)"]
-    end
-
-    subgraph Modelagem_em_Grafo
-        Col["Extração de <trkpt>\n(Remoção de duplicados consecutivos)"]
-        Seg["Segmentação Geodésica (Haversine)\nBlocos >= 320 m e Classificação (-3% / +3%)"]
-        Agrup1["Agrupamento Inicial (<= 20% da rota)\nInclinação repr. = max(|i|)"]
-    end
-
-    subgraph Prescricao_de_Pace
-        Regras["Cálculo do Fator de Esforço (F)\n• 1º Plano: F = 1.05 (+5%)\n• Planos > 14% rota: -0.75%/pos (último 0.95)\n• Subidas: Minetti Cr(i)/3.6\n• Descidas: Minetti limitado a i = -0.02"]
-        Agrup2["União Pós-Fator\nFusão de blocos adjacentes com mesmo relevo\ne fator igual (4 casas decimais)"]
-    end
-
-    subgraph Saidas
-        UI["Interface Streamlit\nMapa Folium + Métricas + Gráficos"]
-        Export["Pacote Compactado (out/)\n• tabela_ritmo_recomendado.csv\n• grafo_gephi.gexf\n• curva_pace_relevo_exportada.png\n• Relatório Textual (.zip)"]
-    end
-
-    GPX --> Col --> Seg --> Agrup1 --> Regras
-    P_base --> Regras
-    Regras --> Agrup2 --> UI
-    Agrup2 --> Export
-```
+- **Complexidade de Tempo Linear $O(N + |V| + |E|)$:** A leitura e a segmentação percorrem os $N$ pontos do arquivo GPX uma única vez ($O(N)$), enquanto as etapas de contração e cálculo de ritmo percorrem sequencialmente apenas os vértices e arestas reduzidos ($O(|V| + |E|)$). O tempo de execução mantém-se na faixa de poucos milissegundos.
+- **Estabilidade Topológica em Rotas Longas (Base de 5 Segmentos):** Quando a entrada cresce para percursos maiores e com mais pontos (ex.: $10\text{ km}$, $21\text{ km}$ ou $42\text{ km}$), o teto de agrupamento acompanha proporcionalmente a prova ($20\%$ da distância total). Assim, caso o percurso não tenha mudança de relevo, os blocos de $320\text{ m}$ são contraídos em uma **base de 5 segmentos** (cada um com $\approx 20\%$ da prova). Quando há subidas e descidas, apenas as transições de relevo geram subdivisões adicionais sobre essa base, evitando a explosão de vértices e mantendo um plano enxuto para o corredor.
 
 ---
 
-## 📊 Resultados de Exemplo: Rota "Corrida Viveza"
+## 📊 Resultados: Rota "Corrida Viveza"
 
-O processamento computacional da rota `in/Corrida_Viveza.gpx` (distância de **4.956 m**, ganho e perda acumulados de elevação de **75 m** cada) com *pace* base de **`05:30 min/km`** resultou em **6 segmentos**, tempo total estimado de **`28:49`** e *pace* médio estimado de **`05:48 min/km`** (`+5,8%`):
+No processamento do arquivo `in/Corrida_Viveza.gpx` (distância de **$4.956\text{ m}$**, ganho e perda acumulados de elevação de **$75\text{ m}$** cada) para um *pace* base de **`05:30 min/km`** ($330\text{ s/km}$), o algoritmo consolidou a rota em **6 segmentos**, com tempo total previsto de **`28:47`** e *pace* médio de **`05:48 min/km`** (`+5,6%`):
 
-| Trecho | Km Referência | Relevo | Distância (m) | Inclinação (%) | Ajuste / Esforço (%) | Pace sugerido | Tempo |
+| Trecho | Km Referência | Relevo | Distância (m) | Inclinação (%) | Ajuste / Esforço (%) | Pace Sugerido | Tempo no Trecho |
 | :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Segmento #1** | Km 0.00 a 1.61 | Plano | 1608 | +1,9% | +5,0% | 05:46 min/km | 09:17 |
-| **Segmento #2** | Km 1.61 a 2.25 | Subida | 642 | +7,7% | +49,1% | 08:12 min/km | 05:15 |
-| **Segmento #3** | Km 2.25 a 2.57 | Plano | 324 | +1,0% | +5,0% | 05:46 min/km | 01:52 |
-| **Segmento #4** | Km 2.57 a 3.21 | Descida | 642 | -7,8% | -10,3% | 04:55 min/km | 03:09 |
-| **Segmento #5** | Km 3.21 a 4.18 | Plano | 968 | -1,7% | -2,2% | 05:22 min/km | 05:12 |
-| **Segmento #6** | Km 4.18 a 4.96 | Plano | 773 | -0,5% | -5,9% | 05:10 min/km | 04:00 |
-| **Total / Geral** | **Km 0.00 a 4.96** | — | **4956** | — | **+5,6%** | **05:48 min/km** | **28:47** |
+| **Segmento #1** | Km 0.00 a 1.61 | ➖ Plano | 1608 | +1,9% | +5,0% | 05:46 min/km | 09:17 |
+| **Segmento #2** | Km 1.61 a 2.25 | 🔺 Subida | 642 | +7,7% | +49,1% | 08:12 min/km | 05:15 |
+| **Segmento #3** | Km 2.25 a 2.57 | ➖ Plano | 324 | +1,0% | +5,0% | 05:46 min/km | 01:52 |
+| **Segmento #4** | Km 2.57 a 3.21 | 🔻 Descida | 642 | -7,8% | -10,3% | 04:55 min/km | 03:09 |
+| **Segmento #5** | Km 3.21 a 4.18 | ➖ Plano | 968 | -1,7% | -2,2% | 05:22 min/km | 05:12 |
+| **Segmento #6** | Km 4.18 a 4.96 | ➖ Plano | 773 | -0,5% | -5,9% | 05:10 min/km | 04:00 |
+| **🏁 Total / Geral** | **Km 0.00 a 4.96** | **—** | **4956** | **—** | **+5,6%** | **05:48 min/km** | **28:47** |
 
-<details>
-<summary><b>🔍 Observação sobre o Segmento #7 (Clique para expandir)</b></summary>
-<br>
-A aplicação do limite estrutural de 20% (991 m) no agrupamento inicial não impede que blocos finais ultrapassem esse valor caso ocorra a junção posterior de blocos adjacentes de mesmo relevo e mesmo fator de esforço (arredondado a 4 casas decimais). Por esse motivo, o <b>Segmento #7</b> totaliza <b>1.072 m</b> com ajuste de <code>-5,0%</code>.
-</details>
+### Gráficos Exportados pelo Sistema (`out/imagens/`)
+
+<div align="center">
+  <img src="out/imagens/curva_pace_relevo.png" alt="Curva de Pace Recomendado e Perfil Altimétrico" width="850"/><br/>
+  <sub><b>Figura 3:</b> Curva de <i>pace</i> recomendado por trecho (% do <i>pace</i> base) no painel superior e perfil altimétrico com faixas de relevo no painel inferior.</sub>
+</div>
+
+<br/>
+
+<div align="center">
+  <img src="out/imagens/grafo_topologia.png" alt="Topologia do Grafo Ponderado da Corrida Viveza" width="680"/><br/>
+  <sub><b>Figura 4:</b> Topologia em anel do grafo direcionado ponderado gerada para o circuito da Corrida Viveza.</sub>
+</div>
 
 ---
 
-## 🏛️ Arquitetura do Repositório
+## 📂 Estrutura de Diretórios
 
 ```text
-├── collectors/         # Leitura de pontos <trkpt> do GPX e remoção de duplicados consecutivos
-│   └── gpx_collector.py
-├── core/               # Segmentação (>= 320m), agrupamento (<= 20% rota, max |i|) e grafo NetworkX
-│   └── graph_builder.py
-├── models/             # Polinómio de Minetti et al. (2002), progressão plana e fusão pós-fator
-│   └── pace_reccom.py
-├── services/           # Orquestração da pipeline e exportação (.csv, .gexf, .png, .txt e .zip)
-│   └── route_services.py
-├── views/              # Renderização de mapas Folium, perfil altimétrico/pace e grafo ponderado
-│   └── chart_view.py
-├── Enums/              # Enumerações tipadas (TipoRelevo, ColorByRelevo)
-│   └── enum.py
-├── utils/              # Funções matemáticas puras (Haversine, Minetti, conversão de tempo)
-│   └── utils.py
-├── assets/             # Imagens e capturas de ecrã da documentação
-├── in/                 # Ficheiros GPX de entrada (ex: Corrida_Viveza.gpx)
-├── out/                # Resultados exportados (tabela_ritmo_recomendado.csv, grafo_gephi.gexf)
-│   └── imagens/        # Gráficos gerados (curva_pace_relevo_exportada.png)
-├── main.py             # Aplicação web interativa em Streamlit
-└── requirements.txt    # Dependências do projeto
+Recomendacao-de-Pace/
+├── in/
+│   └── Corrida_Viveza.gpx                 # Rota GPX real de exemplo (4.956 m)
+├── out/                                   # Artefatos gerados na execução (também exportados via output.zip)
+│   ├── imagens/
+│   │   ├── curva_pace_relevo.png          # Gráfico estático de pace vs. altimetria (300 DPI)
+│   │   ├── grafo_topologia.png            # Imagem da topologia do grafo direcionado
+│   │   ├── uml_atividades_fluxo_geral_pace.png
+│   │   └── uml_atividades_fator_de_esforco.png
+│   ├── grafo_gephi.gexf                   # Grafo XML estruturado com atributos VIZ para o Gephi
+│   ├── tabela_ritmo_recomendado.csv       # Tabela consolidada de prescrição por segmento
+│   └── output.dat                         # Relatório textual consolidado da execução
+├── src/
+│   ├── collectors/
+│   │   └── gpx_collector.py               # Leitura de trilhas GPX (gpxpy) e filtragem de duplicados
+│   ├── core/
+│   │   └── graph_builder.py               # Segmentação (>= 320 m), contração (<= 20%) e grafo NetworkX
+│   ├── models/
+│   │   └── pace_reccom.py                 # Polinômio de Minetti, regras de progressão, sprint e fusão
+│   ├── services/
+│   │   └── route_services.py              # Orquestração da pipeline, exportação GEXF e pacote output.zip
+│   ├── views/
+│   │   ├── chart_view.py                  # Mapas Folium, gráficos interativos Altair e plots Matplotlib
+│   │   └── download_view.py               # Componente de download único do pacote output.zip
+│   ├── Enums/
+│   │   └── enum.py                        # Enumerações de relevo (TipoRelevo) e paleta de cores
+│   └── utils/
+│       └── utils.py                       # Haversine, equação de Minetti e formatação de DataFrames
+├── main.py                                # Aplicação principal em Streamlit
+├── requirements.txt                       # Dependências Python do projeto
+└── README.md                              # Documentação técnica do repositório
 ```
 
 ---
 
-## 🚀 Como Executar Localmente
+## 🚀 Como Executar no Linux (Ubuntu 24.04)
+
+### Pré-requisitos
+- **Sistema Operacional:** Linux (compatível com Ubuntu 24.04 LTS)
+- **Python:** `3.10` ou superior (`python3 --version`)
+
+### Passo a Passo via Terminal
 
 ```bash
 # 1. Clonar o repositório
-git clone [https://github.com/Felipe0132/Pace-Recommender-By-Route.git](https://github.com/Felipe0132/Pace-Recommender-By-Route.git)
+git clone https://github.com/Felipe0132/Pace-Recommender-By-Route.git
 cd Pace-Recommender-By-Route
 
-# 2. Criar e ativar o ambiente virtual
+# 2. Criar e ativar o ambiente virtual (venv)
 python3 -m venv venv
-source venv/bin/activate  # No Windows: venv\Scripts\activate
+source venv/bin/activate
 
-# 3. Instalar as dependências
+# 3. Instalar as dependências listadas
 pip install -r requirements.txt
 
-# 4. Executar a aplicação Streamlit
+# 4. Iniciar a aplicação via terminal
 streamlit run main.py
 ```
 
----
-
-## 🛠️ Tecnologias Utilizadas
-
-| Camada | Tecnologias |
-| :--- | :--- |
-| **Linguagem & Core** | Python 3 |
-| **Interface Web Reativa** | Streamlit, Streamlit-Folium |
-| **Renderização Geoespacial** | Folium, Leaflet |
-| **Teoria dos Grafos & Visualização** | NetworkX, Matplotlib, Gephi (`.gexf`) |
-| **Processamento de Dados Espaciais** | gpxpy, Pandas |
-| **Modelagem Fisiológica** | Polinómio de Minetti et al. (2002) / Grade Adjusted Pace (GAP) |
+Após executar o comando acima, a interface abrirá automaticamente no navegador padrão em `http://localhost:8501`. Na tela inicial:
+1. Defina o **Pace base no plano** (ou use os botões `-5s` / `+5s`).
+2. Escolha entre enviar um arquivo `.gpx` próprio ou selecionar **"Testar com trajeto de exemplo (Viveza)"**.
+3. Clique em **"Confirmar pace e calcular"** para visualizar o mapa, o grafo, os gráficos e baixar o pacote `output.zip`.
 
 ---
 
-## 📚 Referências Bibliográficas e Citação
+## 🛣️ Trabalhos Futuros (Roadmap)
 
-1. **Minetti, A. E., Moia, C., Roi, G. S., Susta, D., & Ferretti, G. (2002).** *Energy cost of walking and running at extreme uphill and downhill slopes*. **Journal of Applied Physiology**, vol. 93, no. 3, pp. 1039–1046.
-2. **Johnson, E. C., et al. (2022).** *Uneven but conservative pacing is associated with performance during uphill and downhill running*. **International Journal of Sports Physiology and Performance**, vol. 17, no. 8, pp. 1179–1187.
-3. **Gottschall, J. S., & Kram, R. (2005).** *Ground reaction forces during downhill and uphill running*. **Journal of Biomechanics**, vol. 38, no. 3, pp. 445–452.
-4. **Silva, F., & Silva, M. P. (2026).** *Dataset para otimização de rotas de corrida e modelagem de esforço baseado em grafos*. **Zenodo**. DOI: [`10.5281/zenodo.23809922`](https://doi.org/10.5281/zenodo.23809922).
+- [ ] **Integração com a API do Strava:** Extração automática do *pace* base do corredor em terreno plano e calibração individualizada das taxas de perda em subidas e de progressão em planos a partir do histórico de treinos.
+- [ ] **Segmentação Topográfica Adaptativa (*Change-Point Detection*):** Substituição do corte espacial fixo de $320\text{ m}$ pela detecção automática de pontos de inflexão na série altimétrica suavizada, instanciando vértices exatamente no início e no fim de cada rampa para evitar a diluição de subidas curtas entre blocos vizinhos.
+- [ ] **Validação Experimental em Campo:** Ensaios práticos com corredores voluntários no percurso da Corrida Viveza, confrontando o ritmo prescrito com o ritmo realizado, frequência cardíaca e percepção subjetiva de esforço.
+
+---
+
+## 📚 Referências Científicas
+
+1. **Minetti, A. E., Moia, C., Roi, G. S., Susta, D., & Ferretti, G. (2002).** *Energy cost of walking and running at extreme uphill and downhill slopes*. **Journal of Applied Physiology**, vol. 93, no. 3, pp. 1039–1046. DOI: [`10.1152/japplphysiol.01177.2001`](https://doi.org/10.1152/japplphysiol.01177.2001).
+2. **Diestel, R. (2017).** *Graph Theory*, 5th ed. Berlin, Germany: **Springer**.
+3. **Gottschall, J. S., & Kram, R. (2005).** *Ground reaction forces during downhill and uphill running*. **Journal of Biomechanics**, vol. 38, no. 3, pp. 445–452. DOI: [`10.1016/j.jbiomech.2004.04.023`](https://doi.org/10.1016/j.jbiomech.2004.04.023).
+4. **Vernillo, G., Giandolini, M., Edwards, W. B., Morin, J.-B., Samozino, P., Horvais, N., & Millet, G. Y. (2017).** *Biomechanics and physiology of uphill and downhill running*. **Sports Medicine**, vol. 47, no. 4, pp. 615–629. DOI: [`10.1007/s40279-016-0605-y`](https://doi.org/10.1007/s40279-016-0605-y).
+5. **Silva, F., & Silva, M. P. (2026).** *Dataset para otimização de rotas de corrida e modelagem de esforço baseado em grafos*. **Zenodo**. DOI: [`10.5281/zenodo.23809922`](https://doi.org/10.5281/zenodo.23809922).
 
 <details>
-<summary><b>📌 Como citar este trabalho (BibTeX)</b></summary>
+<summary><b>📌 Como citar este projeto (BibTeX)</b></summary>
 
 ```bibtex
-@inproceedings{silva2026pace,
-  author    = {Silva, Felipe and Silva, Michel Pires da},
-  title     = {Sistema de Recomenda{\c{c}}{\~a}o de Pace com Par{\^a}metros de Eleva{\c{c}}{\~a}o},
-  school    = {CEFET-MG Campus V},
-  address   = {Divin{\'o}polis, Brasil},
-  year      = {2026},
-  doi       = {10.5281/zenodo.23809922}
+@misc{silva2026pace,
+  author       = {Silva, Felipe and Silva, Michel Pires da},
+  title        = {Sistema de Recomenda{\c{c}}{\~a}o de Pace com Par{\^a}metros de Eleva{\c{c}}{\~a}o},
+  institution  = {CEFET-MG Campus V},
+  address      = {Divin{\'o}polis, Brasil},
+  year         = {2026},
+  doi          = {10.5281/zenodo.23809922},
+  url          = {https://github.com/Felipe0132/Pace-Recommender-By-Route}
 }
 ```
 </details>
