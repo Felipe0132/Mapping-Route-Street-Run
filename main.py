@@ -145,7 +145,16 @@ if mode == "GPX":
         st.warning("⚠️ Rota carregada! Ajuste o seu ritmo desejado no seletor acima e clique em **'Confirmar Pace e Calcular'**.")
         st.stop()
 
-    G_segment, G_grouped, segments, dist, up, down, points = sv.process_gpx_route(file_gpx)
+    try:
+        G_segment, G_grouped, segments, dist, up, down, points = sv.process_gpx_route(file_gpx)
+    except Exception:
+        st.error(
+            "❌ **Arquivo .GPX fora do padrão esperado!**\n\n"
+            "O arquivo enviado não obedece à estrutura necessária para o cálculo. "
+            "Certifique-se de enviar um arquivo no **padrão GPX com a mesma estrutura do trajeto da Corrida Viveza** "
+            "(contendo tags `<trk>`, `<trkseg>` e pontos `<trkpt>` com latitude, longitude e elevação `<ele>`)."
+        )
+        st.stop()
 
     st.success("Rota pronta. Confira o resumo e as visualizações abaixo.")
 

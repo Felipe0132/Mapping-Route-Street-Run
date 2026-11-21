@@ -17,6 +17,11 @@ def process_gpx_route(file_gpx):
 
     G_segment = graph_builder.points_to_graph(points)
     G_grouped = graph_builder.groupByRelevo(G_segment, max_dist=lim20per)
+    if G_segment is None or G_grouped is None or G_grouped.number_of_edges() == 0:
+        raise gpx_collector.GPXFormatError(
+            "Não foi possível gerar os segmentos a partir deste arquivo .GPX. "
+            "Utilize o padrão GPX com a mesma estrutura do trajeto de exemplo (Corrida Viveza)."
+        )
     segments, dist, up, down = extract_infs(G_grouped)
 
     return G_segment, G_grouped, segments, dist, up, down, points
