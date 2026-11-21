@@ -85,9 +85,9 @@ i = \frac{\Delta z}{d}, \qquad i_{\text{pct}} = i \times 100
 $$
 
 Cada bloco recebe uma classificação topográfica:
-- **🔺 Subida (Aclive):** inclinação $\ge +3\%$
-- **🔻 Descida (Declive):** inclinação $< -3\%$
-- **➖ Plano:** inclinação entre $-3\%$ e $+3\%$ ($-3\% \le i_{\text{pct}} < +3\%$)
+- **🔺 Subida (Aclive):** $i_{\text{pct}} \ge +3$ (`>= +3%`)
+- **🔻 Descida (Declive):** $i_{\text{pct}} < -3$ (`< -3%`)
+- **➖ Plano:** $-3 \le i_{\text{pct}} < +3$ (entre `-3%` e `+3%`)
 
 ---
 
@@ -112,9 +112,9 @@ $$
 
 As quatro regras aplicadas na sequência dos blocos são:
 1. **Aquecimento no 1º trecho plano:** O primeiro bloco plano recebe $F = 1,05$ (`+5,0%`), iniciando 5% mais lento que o *pace* base.
-2. **Progressão nos planos intermediários (Limiar de 14% da prova):** A distância mínima para progressão é 70% do limite estrutural de agrupamento, o que equivale a **14% da rota total**. Nos blocos planos seguintes ($k \ge 2$) com extensão superior a 14% da prova, o ritmo progride 0,75% por posição com um verificador que trava o piso dos trechos intermediários em `0,95`, conforme $F = \max(0,95;\; 1,0 - 0,0075(k - 1))$. Blocos planos curtos ($\le 14\%$ da rota) mantêm o fator do bloco plano anterior e fundem-se a ele caso sejam vizinhos.
+2. **Progressão nos planos intermediários (Limiar de 14% da prova):** A distância mínima para progressão é 70% do limite estrutural de agrupamento, o que equivale a **14% da rota total**. Nos blocos planos seguintes ($k \ge 2$) com extensão superior a 14% da prova, o ritmo progride 0,75% por posição com um verificador que trava o piso dos trechos intermediários em `0,95`, conforme $F = \max(0,95;\; 1,0 - 0,0075(k - 1))$. Blocos planos curtos (menores ou iguais a `14%` da rota) mantêm o fator do bloco plano anterior e fundem-se a ele caso sejam vizinhos.
 3. **Sprint no último trecho plano:** Se houver mais de um segmento plano após a fusão, o último segmento plano recebe um estímulo extra de chegada multiplicando seu fator acumulado por **0,97** ($F_{\text{final}} = F \times 0,97$), sem a trava de `0,95` aplicada aos blocos intermediários.
-4. **Limite máximo de `-2%` em descidas:** Embora um bloco seja classificado como descida a partir de $-3\%$, o cálculo do fator de esforço no polinômio de Minetti é travado no limite máximo de **`-2%`** ($i = -0,02$). Isso ocorre porque inclinações mais negativas que $-2\%$ na equação metabólica provocam uma queda acentuada e irrealista do *pace*, exigindo velocidades incompatíveis com a frenagem muscular excêntrica e a segurança articular em ladeiras. Com esse teto em $-2\%$, a redução máxima de ritmo nas descidas fica limitada a **`-10,3%`** ($F_e \approx 0,897$).
+4. **Limite máximo de `-2%` em descidas:** Embora um bloco seja classificado como descida a partir de `-3%`, o cálculo do fator de esforço no polinômio de Minetti é travado no limite máximo de **`-2%`** ($i = -0,02$). Isso ocorre porque inclinações mais negativas que `-2%` na equação metabólica provocam uma queda acentuada e irrealista do *pace*, exigindo velocidades incompatíveis com a frenagem muscular excêntrica e a segurança articular em ladeiras. Com esse teto em `-2%`, a redução máxima de ritmo nas descidas fica limitada a **`-10,3%`** ($F_e \approx 0,897$).
 
 ---
 
