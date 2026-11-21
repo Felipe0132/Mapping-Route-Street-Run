@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏃 Sistema de Recomendação de Pace com Parâmetros de Elevação
+# 🏃 Sistema de Mapeamento de Corrida de Rua com Parâmetros de Elevação
 
 **Modelagem de Percursos GPX em Grafos Direcionados Ponderados e Prescrição de Ritmo Baseada no Custo Metabólico de Minetti**
 
